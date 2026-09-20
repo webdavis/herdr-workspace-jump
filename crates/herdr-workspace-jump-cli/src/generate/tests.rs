@@ -75,7 +75,7 @@ fn generate_reports_a_config_it_cannot_read() {
 }
 
 #[test]
-fn generate_refuses_a_missing_output_an_unknown_flag_and_a_flag_without_a_value() {
+fn generate_refuses_a_missing_output_a_repeated_flag_and_a_flag_in_a_values_place() {
     for arguments in [
         vec![],
         vec!["--config", "/tmp/config.toml"],
@@ -83,6 +83,16 @@ fn generate_refuses_a_missing_output_an_unknown_flag_and_a_flag_without_a_value(
         vec!["--output"],
         vec!["--output", "/tmp/plugin", "--config"],
         vec!["--output", "/tmp/one", "--output", "/tmp/two"],
+        vec![
+            "--output",
+            "/tmp/plugin",
+            "--config",
+            "/tmp/a",
+            "--config",
+            "/tmp/b",
+        ],
+        vec!["--output", "--config"],
+        vec!["--config", "--output", "/tmp/plugin"],
     ] {
         assert!(
             matches!(parse(&arguments), Err(CommandError::Usage)),

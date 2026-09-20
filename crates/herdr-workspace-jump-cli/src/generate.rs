@@ -32,7 +32,8 @@ fn parse(arguments: &[&str]) -> Result<Options, CommandError> {
             "--config" => &mut config,
             _ => return Err(CommandError::Usage),
         };
-        if slot.is_some() {
+        // A flag in a value's place is a missing value, not a directory named `--config`.
+        if slot.is_some() || value.starts_with("--") {
             return Err(CommandError::Usage);
         }
         *slot = Some(PathBuf::from(value));

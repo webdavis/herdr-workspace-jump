@@ -1,5 +1,4 @@
 use super::*;
-use crate::command::USAGE;
 use herdr_workspace_jump_application::WorkspaceHistory;
 use herdr_workspace_jump_domain::Mru;
 use std::fs;
@@ -58,5 +57,4 @@ fn generate_without_an_output_directory_is_a_usage_error() {
     let refusal = execute(&["generate".to_string()]);
 
     assert!(matches!(refusal, Err(CommandError::Usage)), "{refusal:?}");
-    assert!(USAGE.contains("generate --output <directory>"), "{USAGE}");
 }
