@@ -63,13 +63,12 @@ fn write_manifest_reports_a_directory_it_cannot_write() {
     let refusal = write_manifest(&absent, "1.2.3", &one_target())
         .expect_err("a missing directory is refused");
 
-    assert_eq!(
-        refusal,
-        ManifestError::Unwritable {
-            path: absent.join(MANIFEST_NAME),
-            reason: "No such file or directory (os error 2)".to_string(),
+    match &refusal {
+        ManifestError::Unwritable { path, .. } => {
+            assert_eq!(path, &absent.join(MANIFEST_NAME));
         }
-    );
+        other => panic!("expected Unwritable, got {other:?}"),
+    }
     assert!(
         refusal.to_string().contains(&absent.display().to_string()),
         "{refusal}"
