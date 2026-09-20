@@ -48,6 +48,10 @@ herdr plugin link ~/.local/share/herdr-workspace-jump
 Re-run `generate`, and re-link, whenever the config changes. The manifest is build output rather
 than source, and is deliberately not committed.
 
+`generate` reads the config path above unless you point it elsewhere: `--config <file>` names one
+file, and `HERDR_PLUGIN_CONFIG_DIR`, which herdr itself sets when it runs a plugin, names the
+directory the `config.toml` sits in.
+
 Each workspace gets the action id `jump_` plus its label, lowercased with every character outside
 `a-z0-9` replaced by an underscore, so `Ivy` is `jump_ivy` and `casually-concerned` is
 `jump_casually_concerned`. Two labels deriving the same id is refused rather than dropping one
