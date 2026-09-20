@@ -1,10 +1,14 @@
 mod cli;
+mod config;
 mod history;
+mod manifest;
 mod response;
 mod socket;
 
 pub use cli::CliWorkspaceDirectory;
+pub use config::{config_file, read_jump_targets};
 pub use history::{FileWorkspaceHistory, state_file};
+pub use manifest::{render_manifest, write_manifest};
 pub use socket::{DEADLINE, SocketWorkspaceDirectory};
 
 #[cfg(test)]
