@@ -5,10 +5,11 @@ use herdr_workspace_jump_adapters::{FileWorkspaceHistory, state_file};
 use herdr_workspace_jump_application::record;
 use herdr_workspace_jump_protocol::parse_focused_id;
 
-use crate::{last_workspace, path::expand_tilde, run};
+use crate::{generate, last_workspace, path::expand_tilde, run};
 
-pub(crate) const USAGE: &str = "usage: herdr-workspace-jump jump <label> <cwd> | herdr-workspace-jump last-workspace | herdr-workspace-jump record";
+pub(crate) const USAGE: &str = "usage: herdr-workspace-jump jump <label> <cwd> | herdr-workspace-jump last-workspace | herdr-workspace-jump record | herdr-workspace-jump generate --output <directory> [--config <file>]";
 
+#[derive(Debug)]
 pub(crate) enum CommandError {
     Usage,
     Failed(String),
@@ -55,6 +56,7 @@ pub(crate) fn execute(arguments: &[String]) -> Result<(), CommandError> {
                 "could not toggle to the previous workspace: {failure}"
             ))
         }),
+        ["generate", options @ ..] => generate::run(options),
         ["record"] => {
             record_at(
                 &history_path(),

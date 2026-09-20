@@ -15,19 +15,48 @@ It talks to herdr over `HERDR_SOCKET_PATH` with newline-delimited JSON, and fall
 
 ## Install
 
+**This plugin ships no `herdr-plugin.toml`, so `herdr plugin install` cannot install it.** The jump
+actions are one per workspace you declare, so the manifest is a function of your configuration
+rather than a file that can be committed once for everybody. It is built, generated and linked
+instead. A Rust toolchain has to be on the machine.
+
 ```bash
-herdr plugin install webdavis/herdr-workspace-jump --ref <commit-or-tag> -y
+git clone https://github.com/webdavis/herdr-workspace-jump.git ~/.local/share/herdr-workspace-jump
+cd ~/.local/share/herdr-workspace-jump
+cargo build --release --locked
 ```
 
-herdr clones the repository and runs the manifest's build step (`cargo build --release --locked`),
-so a Rust toolchain has to be on the machine. `--ref` is optional but recommended: herdr v1 has no
-`plugin update`, so an unpinned install is whatever tip was on the day it ran.
+Declare your workspaces in `~/.config/herdr/plugins/config/herdr-workspace-jump/config.toml`. The
+key is the label herdr shows, which is case sensitive, and the value is the working directory:
 
-**The actions in `herdr-plugin.toml` are one per workspace, and the ones committed here are mine.**
-herdr plugin v1 registers no actions at runtime and a `plugin_action` keybinding passes no arguments,
-so each jump target's label and directory are baked into an action's argv. To use your own, fork this
-repository, replace the `[[actions]]` blocks with yours, and install from the fork. The
-`last_workspace` action and the `record` event hook need no editing.
+```toml
+[workspaces]
+homelab = "~/workspaces/homelab"
+"casually-concerned" = "~/workspaces/casually-concerned"
+Ivy = "~/workspaces/Ivy"
+```
+
+A leading `~` is expanded when the jump runs, so it can stay in the file.
+
+Then render the manifest and link the directory:
+
+```bash
+./target/release/herdr-workspace-jump generate --output .
+herdr plugin link ~/.local/share/herdr-workspace-jump
+```
+
+Re-run `generate`, and re-link, whenever the config changes. The manifest is build output rather
+than source, and is deliberately not committed.
+
+`generate` reads the config path above unless you point it elsewhere: `--config <file>` names one
+file, and `HERDR_PLUGIN_CONFIG_DIR`, which herdr itself sets when it runs a plugin, names the
+directory the `config.toml` sits in.
+
+Each workspace gets the action id `jump_` plus its label, lowercased with every character outside
+`a-z0-9` replaced by an underscore, so `Ivy` is `jump_ivy` and `casually-concerned` is
+`jump_casually_concerned`. Two labels deriving the same id is refused rather than dropping one
+silently. The `last_workspace` action and the `record` event hook are always rendered and need no
+configuration.
 
 Then bind the actions in `~/.config/herdr/config.toml`:
 
