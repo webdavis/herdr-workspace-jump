@@ -1,6 +1,8 @@
-//! Workspace navigation: `jump <label> <cwd>`, `last-workspace`, and the `record` event hook.
+//! Workspace navigation: `jump <label> <cwd>`, `last-workspace`, the `record` event hook,
+//! and `generate`, which renders the plugin manifest from the declared workspaces.
 
 mod command;
+mod generate;
 mod last_workspace;
 mod path;
 mod run;

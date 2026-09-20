@@ -1,4 +1,5 @@
 use super::*;
+use crate::command::USAGE;
 use herdr_workspace_jump_application::WorkspaceHistory;
 use herdr_workspace_jump_domain::Mru;
 use std::fs;
@@ -50,4 +51,12 @@ fn record_leaves_the_state_alone_for_a_refocus_or_a_garbage_event() {
         FileWorkspaceHistory::at(&state.path()).read(),
         mru("wA", "")
     );
+}
+
+#[test]
+fn generate_without_an_output_directory_is_a_usage_error() {
+    let refusal = execute(&["generate".to_string()]);
+
+    assert!(matches!(refusal, Err(CommandError::Usage)), "{refusal:?}");
+    assert!(USAGE.contains("generate --output <directory>"), "{USAGE}");
 }
