@@ -14,8 +14,12 @@ struct Options {
 pub(crate) fn run(arguments: &[&str]) -> Result<(), CommandError> {
     let options = parse(arguments)?;
     let config = options.config.unwrap_or_else(default_config);
-    let targets = read_jump_targets(&config).map_err(CommandError::Failed)?;
-    write_manifest(&options.output, &targets).map_err(CommandError::Failed)
+    let targets = read_jump_targets(&config).map_err(failed)?;
+    write_manifest(&options.output, env!("CARGO_PKG_VERSION"), &targets).map_err(failed)
+}
+
+fn failed(refusal: impl std::fmt::Display) -> CommandError {
+    CommandError::Failed(refusal.to_string())
 }
 
 fn parse(arguments: &[&str]) -> Result<Options, CommandError> {

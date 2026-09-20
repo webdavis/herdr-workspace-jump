@@ -52,7 +52,10 @@ version = "0.1.0"
 name = "herdr-workspace-jump-protocol"
 version = "0.1.0"
 dependencies = [
+ "herdr-workspace-jump-domain",
+ "serde",
  "serde_json",
+ "toml",
 ]
 
 [[package]]
