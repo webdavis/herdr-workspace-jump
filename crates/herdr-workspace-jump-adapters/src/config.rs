@@ -3,17 +3,52 @@ use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use herdr_workspace_jump_domain::{JumpTarget, TargetError, jump_targets};
+use herdr_workspace_jump_domain::{JumpTarget, TargetError, WorkspaceDeclaration, jump_targets};
 use serde::Deserialize;
 
 /// The declared workspaces, keyed by the label herdr shows.
 ///
-/// A `BTreeMap` orders the manifest by label, so two runs over the same file
-/// render the same bytes.
+/// A `BTreeMap` orders the manifest and the pick popup by label, so two runs
+/// over the same file render the same bytes.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WorkspaceDeclarations {
-    workspaces: BTreeMap<String, String>,
+    workspaces: BTreeMap<String, Declaration>,
+}
+
+/// A workspace is its directory, or a table that also names its pick key.
+#[derive(Deserialize)]
+#[serde(
+    untagged,
+    expecting = "a directory, or a table of a dir and an optional key"
+)]
+enum Declaration {
+    Directory(String),
+    Detailed(DetailedDeclaration),
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DetailedDeclaration {
+    dir: String,
+    key: Option<String>,
+}
+
+impl Declaration {
+    fn labelled(self, label: String) -> WorkspaceDeclaration {
+        match self {
+            Self::Directory(directory) => WorkspaceDeclaration {
+                label,
+                directory,
+                key: None,
+            },
+            Self::Detailed(detailed) => WorkspaceDeclaration {
+                label,
+                directory: detailed.dir,
+                key: detailed.key,
+            },
+        }
+    }
 }
 
 /// Why the declared workspaces could not be read.
@@ -87,7 +122,11 @@ pub fn read_jump_targets(path: &Path) -> Result<Vec<JumpTarget>, ConfigError> {
             reason: failure.message().to_string(),
             line: line_of(&content, &failure),
         })?;
-    jump_targets(declarations.workspaces).map_err(|cause| ConfigError::Invalid {
+    let workspaces = declarations
+        .workspaces
+        .into_iter()
+        .map(|(label, declaration)| declaration.labelled(label));
+    jump_targets(workspaces).map_err(|cause| ConfigError::Invalid {
         path: path.to_owned(),
         cause,
     })

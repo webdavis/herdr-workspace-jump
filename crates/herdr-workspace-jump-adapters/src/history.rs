@@ -25,19 +25,6 @@ impl WorkspaceHistory for FileWorkspaceHistory {
     }
 }
 
-pub fn state_file(state_dir: Option<&str>, home: Option<&str>) -> PathBuf {
-    let dir = state_dir
-        .filter(|dir| !dir.is_empty())
-        .map(str::to_string)
-        .unwrap_or_else(|| {
-            format!(
-                "{}/.local/state/herdr/plugins/herdr-workspace-jump",
-                home.unwrap_or_default()
-            )
-        });
-    PathBuf::from(dir).join("mru")
-}
-
 fn read_at(path: &Path) -> Mru {
     let content = fs::read_to_string(path).unwrap_or_default();
     let mut lines = content.lines();

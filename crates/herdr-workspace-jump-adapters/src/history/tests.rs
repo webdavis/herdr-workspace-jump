@@ -28,22 +28,6 @@ impl Drop for TempState {
 }
 
 #[test]
-fn state_file_prefers_the_injected_directory_over_the_home_default() {
-    assert_eq!(
-        state_file(Some("/tmp/state-override"), Some("/home/ignored")),
-        PathBuf::from("/tmp/state-override/mru")
-    );
-    assert_eq!(
-        state_file(None, Some("/home/me")),
-        PathBuf::from("/home/me/.local/state/herdr/plugins/herdr-workspace-jump/mru")
-    );
-    assert_eq!(
-        state_file(Some(""), Some("/home/me")),
-        PathBuf::from("/home/me/.local/state/herdr/plugins/herdr-workspace-jump/mru")
-    );
-}
-
-#[test]
 fn read_at_treats_a_missing_or_short_file_as_a_cold_start() {
     let state = TempState::new("cold");
     assert_eq!(read_at(&state.path()), Mru::default());

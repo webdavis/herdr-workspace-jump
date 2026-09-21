@@ -1,9 +1,8 @@
-use std::env;
 use std::path::PathBuf;
 
-use herdr_workspace_jump_adapters::{config_file, read_jump_targets, write_manifest};
+use herdr_workspace_jump_adapters::{read_jump_targets, write_manifest};
 
-use crate::command::CommandError;
+use crate::command::{CommandError, config_path, failed};
 
 struct Options {
     output: PathBuf,
@@ -13,13 +12,9 @@ struct Options {
 /// Render the plugin manifest from the declared workspaces.
 pub(crate) fn run(arguments: &[&str]) -> Result<(), CommandError> {
     let options = parse(arguments)?;
-    let config = options.config.unwrap_or_else(default_config);
+    let config = options.config.unwrap_or_else(config_path);
     let targets = read_jump_targets(&config).map_err(failed)?;
     write_manifest(&options.output, env!("CARGO_PKG_VERSION"), &targets).map_err(failed)
-}
-
-fn failed(refusal: impl std::fmt::Display) -> CommandError {
-    CommandError::Failed(refusal.to_string())
 }
 
 fn parse(arguments: &[&str]) -> Result<Options, CommandError> {
@@ -46,14 +41,6 @@ fn parse(arguments: &[&str]) -> Result<Options, CommandError> {
         output: output.ok_or(CommandError::Usage)?,
         config,
     })
-}
-
-fn default_config() -> PathBuf {
-    config_file(
-        env::var("HERDR_PLUGIN_CONFIG_DIR").ok().as_deref(),
-        env::var("XDG_CONFIG_HOME").ok().as_deref(),
-        env::var("HOME").ok().as_deref(),
-    )
 }
 
 #[cfg(test)]

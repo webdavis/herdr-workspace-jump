@@ -50,6 +50,7 @@ fn target(label: &str, directory: &str) -> JumpTarget {
         action_id: herdr_workspace_jump_domain::action_id(label),
         label: label.to_string(),
         directory: directory.to_string(),
+        pick_key: 'x',
     }
 }
 

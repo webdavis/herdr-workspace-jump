@@ -35,6 +35,7 @@ fn one_target() -> Vec<JumpTarget> {
         action_id: "jump_netpulse".to_string(),
         label: "netpulse".to_string(),
         directory: "/opt/netpulse".to_string(),
+        pick_key: 'n',
     }]
 }
 
