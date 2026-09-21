@@ -9,6 +9,9 @@ Two pieces of workspace navigation [herdr](https://herdr.dev) has no built-in fo
   `workspace.focused` event hook records every focus change, mouse and picker included, which is
   what makes the toggle correct where a key-bound script was not: a script only sees the switches
   routed through itself.
+- **A one-letter pick popup.** A herdr binding is a single chord, so "prefix, then a letter" has
+  to read its second key somewhere. `pick` reads it inside a herdr popup and jumps to whichever
+  workspace that letter names.
 
 It talks to herdr over `HERDR_SOCKET_PATH` with newline-delimited JSON, and falls back to the
 `herdr` CLI at `HERDR_BIN_PATH` whenever the socket fails.
@@ -27,16 +30,22 @@ cargo build --release --locked
 ```
 
 Declare your workspaces in `~/.config/herdr/plugins/config/herdr-workspace-jump/config.toml`. The
-key is the label herdr shows, which is case sensitive, and the value is the working directory:
+key is the label herdr shows, which is case sensitive, and the value is either the working
+directory on its own or a table naming that directory and the key the pick popup selects it with:
 
 ```toml
 [workspaces]
 homelab = "~/workspaces/homelab"
 "casually-concerned" = "~/workspaces/casually-concerned"
-Ivy = "~/workspaces/Ivy"
+Ivy = { dir = "~/workspaces/Ivy", key = "v" }
 ```
 
 A leading `~` is expanded when the jump runs, so it can stay in the file.
+
+`key` defaults to the label's first character lowercased, which is why `homelab` picks on `h` and
+`Ivy` would pick on `i` without the `v` above. It has to be exactly one printable ASCII character,
+and two workspaces resolving to the same key are refused when the config is read, in one sentence
+naming both labels.
 
 Then render the manifest and link the directory:
 
@@ -66,6 +75,36 @@ key = "prefix+ctrl+\\"
 type = "plugin_action"
 command = "herdr-workspace-jump.last_workspace"
 ```
+
+## The pick popup
+
+`pick` prints one line per workspace, `<key>  <label>`, reads a single keystroke, and jumps to the
+workspace that keystroke names. `esc`, `q` and ctrl-c close it without jumping, and so does any key
+no workspace claims. Bind it as a popup rather than a plugin action:
+
+```toml
+[[keys.command]]
+key = "prefix+ctrl+o"
+type = "popup"
+command = "~/.local/share/herdr-workspace-jump/target/release/herdr-workspace-jump pick"
+description = "pick a workspace"
+width = 40
+height = 13
+```
+
+herdr runs a popup command through `/bin/sh -c`, so the leading `~` above is expanded by the shell
+and an absolute path is not required. `width` and `height` are terminal cells and include the
+border, so thirteen rows hold ten workspaces, the cancel line and the border itself.
+
+`pick` is a popup command rather than a plugin action, so `generate` does not render it into the
+manifest and nothing needs regenerating when the binding changes. It reads the same config file the
+manifest comes from and has no `--config` flag; `HERDR_PLUGIN_CONFIG_DIR` is what points it
+elsewhere.
+
+The jump does not happen inside the popup. herdr may restore focus to the pane that opened the
+popup once the popup's command exits, which would undo it, so `pick` spawns a detached
+`jump <label> <cwd> --after-pid <pid>` and exits at once. That child waits for the popup to be gone
+before it asks herdr for anything, and gives up waiting after two seconds.
 
 ## License
 
