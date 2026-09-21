@@ -2,91 +2,66 @@
 
 use std::io;
 
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, read};
+use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers, read};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use herdr_workspace_jump_domain::PickKey;
 
 /// Raw mode for as long as this value lives.
 ///
 /// The popup borrows the terminal herdr gave it, so raw mode is restored on the
-/// way out of every branch, including a failed read.
-struct RawMode;
-
-impl RawMode {
-    fn enter() -> io::Result<Self> {
-        enable_raw_mode()?;
-        Ok(Self)
-    }
+/// way out of every branch, including a failed read and an unwinding panic.
+struct RawMode {
+    restore: fn(),
 }
 
 impl Drop for RawMode {
     fn drop(&mut self) {
-        let _ = disable_raw_mode();
+        (self.restore)();
     }
 }
 
-/// Read one keystroke from the terminal, ignoring everything that is not a key press.
+fn restore_terminal() {
+    let _ = disable_raw_mode();
+}
+
+fn enter_raw_mode() -> io::Result<RawMode> {
+    enable_raw_mode()?;
+    Ok(RawMode {
+        restore: restore_terminal,
+    })
+}
+
+/// Read one keystroke from the terminal.
 pub fn read_one_key() -> io::Result<PickKey> {
-    let _raw_mode = RawMode::enter()?;
+    let _raw_mode = enter_raw_mode()?;
     loop {
-        if let Event::Key(key) = read()?
-            && key.kind != KeyEventKind::Release
-        {
-            return Ok(pick_key(key));
+        if let Some(key) = keystroke_of(read()?) {
+            return Ok(key);
         }
     }
 }
 
-fn pick_key(key: KeyEvent) -> PickKey {
+/// The keystroke an event carries, when it carries one.
+///
+/// A resize, a focus change and a paste are events the popup waits through, and
+/// so is the release of the key whose press it already answered.
+fn keystroke_of(event: Event) -> Option<PickKey> {
+    let Event::Key(key) = event else {
+        return None;
+    };
+    if key.kind == KeyEventKind::Release {
+        return None;
+    }
     let control_or_alt = KeyModifiers::CONTROL | KeyModifiers::ALT;
-    match key.code {
+    Some(match key.code {
         KeyCode::Esc => PickKey::Escape,
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => PickKey::Interrupt,
         KeyCode::Char(character) if !key.modifiers.intersects(control_or_alt) => {
             PickKey::Character(character)
         }
         _ => PickKey::Other,
-    }
+    })
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_plain_or_shifted_character_press_is_that_character() {
-        assert_eq!(
-            pick_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE)),
-            PickKey::Character('d')
-        );
-        assert_eq!(
-            pick_key(KeyEvent::new(KeyCode::Char('D'), KeyModifiers::SHIFT)),
-            PickKey::Character('D')
-        );
-    }
-
-    #[test]
-    fn escape_and_ctrl_c_are_the_two_ways_out() {
-        assert_eq!(
-            pick_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE)),
-            PickKey::Escape
-        );
-        assert_eq!(
-            pick_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
-            PickKey::Interrupt
-        );
-    }
-
-    #[test]
-    fn a_modified_character_or_a_press_carrying_none_has_no_character() {
-        for keyless in [
-            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::CONTROL),
-            KeyEvent::new(KeyCode::Char('d'), KeyModifiers::ALT),
-            KeyEvent::new(KeyCode::Up, KeyModifiers::NONE),
-            KeyEvent::new(KeyCode::F(1), KeyModifiers::NONE),
-            KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE),
-        ] {
-            assert_eq!(pick_key(keyless), PickKey::Other, "{keyless:?}");
-        }
-    }
-}
+mod tests;
