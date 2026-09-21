@@ -29,6 +29,7 @@ pub(crate) fn run() -> Result<(), CommandError> {
         Pick::Selected(target) => spawn_jump(target, |binary, arguments| {
             spawn_detached(binary, arguments, Some(&log_path()))
         }),
+        // Both outcomes close the popup with nothing done.
         Pick::Cancelled | Pick::Unbound => Ok(()),
     }
 }
