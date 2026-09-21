@@ -1,10 +1,12 @@
-//! Workspace navigation: `jump <label> <cwd>`, `last-workspace`, the `record` event hook,
-//! and `generate`, which renders the plugin manifest from the declared workspaces.
+//! Workspace navigation: `jump <label> <cwd>`, `pick`, which offers the declared
+//! workspaces in a popup, `last-workspace`, the `record` event hook, and
+//! `generate`, which renders the plugin manifest from the declared workspaces.
 
 mod command;
 mod generate;
 mod last_workspace;
 mod path;
+mod pick;
 mod run;
 
 use std::env;
