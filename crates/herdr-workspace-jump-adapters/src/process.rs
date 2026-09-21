@@ -1,5 +1,6 @@
 //! Starting a jump that outlives this process, and waiting for the one that started it.
 
+use std::fs::{OpenOptions, create_dir_all};
 use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -12,18 +13,35 @@ use std::os::unix::process::CommandExt;
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 
-/// Start a child in its own process group, with no terminal of its own.
+/// Start a child in its own process group, with no terminal of its own, and its
+/// failures appended to `errors`.
 ///
 /// The caller does not wait for it: whoever reaps this process reaps the child.
-pub fn spawn_detached(program: &Path, arguments: &[&str]) -> io::Result<()> {
+pub fn spawn_detached(program: &Path, arguments: &[&str], errors: Option<&Path>) -> io::Result<()> {
     Command::new(program)
         .args(arguments)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(error_log(errors))
         .process_group(0)
         .spawn()
         .map(|_| ())
+}
+
+/// The child outlives the terminal that started it, so what it writes to stderr
+/// is the only account of a failure anyone can read afterwards.
+fn error_log(errors: Option<&Path>) -> Stdio {
+    let Some(path) = errors else {
+        return Stdio::null();
+    };
+    if let Some(parent) = path.parent() {
+        let _ = create_dir_all(parent);
+    }
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .map_or_else(|_| Stdio::null(), Stdio::from)
 }
 
 /// Poll until the process is gone, and proceed anyway once the cap expires.

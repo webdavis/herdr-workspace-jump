@@ -1,7 +1,7 @@
 use std::env;
 use std::path::{Path, PathBuf};
 
-use herdr_workspace_jump_adapters::{FileWorkspaceHistory, config_file, state_file};
+use herdr_workspace_jump_adapters::{FileWorkspaceHistory, config_file, log_file, state_file};
 use herdr_workspace_jump_application::record;
 use herdr_workspace_jump_protocol::parse_focused_id;
 
@@ -31,6 +31,14 @@ pub(crate) fn config_path() -> PathBuf {
 
 fn history_path() -> PathBuf {
     state_file(
+        env::var("HERDR_PLUGIN_STATE_DIR").ok().as_deref(),
+        env::var("HOME").ok().as_deref(),
+    )
+}
+
+/// Where a jump the popup spawned reports what went wrong.
+pub(crate) fn log_path() -> PathBuf {
+    log_file(
         env::var("HERDR_PLUGIN_STATE_DIR").ok().as_deref(),
         env::var("HOME").ok().as_deref(),
     )

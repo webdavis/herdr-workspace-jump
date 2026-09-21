@@ -8,7 +8,7 @@ use herdr_workspace_jump_adapters::{
 };
 use herdr_workspace_jump_domain::{JumpTarget, Pick, decide_pick, render_menu};
 
-use crate::command::{CommandError, config_path, failed};
+use crate::command::{CommandError, config_path, failed, log_path};
 
 /// How long a jump waits for the popup that spawned it to close.
 const SPAWNER_EXIT_CAP: Duration = Duration::from_secs(2);
@@ -34,7 +34,8 @@ pub(crate) fn run() -> Result<(), CommandError> {
 ///
 /// herdr may restore focus to the pane that opened the popup once the popup's
 /// command exits, which would undo a jump issued from inside it. The child
-/// waits for this process to go before it asks herdr for anything.
+/// waits for this process to go before it asks herdr for anything, and reports
+/// a refusal to the log, since the popup that would have shown it is gone.
 fn spawn_jump(target: &JumpTarget) -> Result<(), CommandError> {
     let binary = env::current_exe()
         .map_err(|failure| failed(format!("cannot find this binary: {failure}")))?;
@@ -42,6 +43,7 @@ fn spawn_jump(target: &JumpTarget) -> Result<(), CommandError> {
     spawn_detached(
         &binary,
         &["jump", &target.label, &target.directory, AFTER_PID, &popup],
+        Some(&log_path()),
     )
     .map_err(|failure| failed(format!("cannot start the jump: {failure}")))
 }

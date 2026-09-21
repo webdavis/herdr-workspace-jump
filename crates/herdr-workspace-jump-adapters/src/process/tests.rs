@@ -59,6 +59,7 @@ fn a_detached_child_runs_in_a_process_group_of_its_own() {
     spawn_detached(
         Path::new("/bin/sh"),
         &["-c", &format!("ps -o pgid= -p $$ > {}", marker.display())],
+        None,
     )
     .expect("the child starts");
 
@@ -80,5 +81,36 @@ fn a_detached_child_runs_in_a_process_group_of_its_own() {
 
 #[test]
 fn a_program_that_cannot_be_started_is_reported() {
-    assert!(spawn_detached(Path::new("/nonexistent/binary"), &[]).is_err());
+    assert!(spawn_detached(Path::new("/nonexistent/binary"), &[], None).is_err());
+}
+
+#[test]
+fn what_a_detached_child_writes_to_stderr_is_appended_to_the_log() {
+    let sandbox = TempDirectory::new("errors");
+    // The directory the log names does not exist yet, the way a first run finds it.
+    let log = sandbox.0.join("state").join("jump.log");
+
+    for refusal in ["could not jump to Ivy: herdr unreachable", "and again"] {
+        spawn_detached(
+            Path::new("/bin/sh"),
+            &["-c", &format!("echo '{refusal}' >&2")],
+            Some(&log),
+        )
+        .expect("the child starts");
+    }
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut written = String::new();
+    while Instant::now() < deadline && written.lines().count() < 2 {
+        sleep(POLL_INTERVAL);
+        written = std::fs::read_to_string(&log).unwrap_or_default();
+    }
+    assert!(
+        written.contains("could not jump to Ivy: herdr unreachable"),
+        "the first refusal is missing: {written:?}"
+    );
+    assert!(
+        written.contains("and again"),
+        "the log was truncated rather than appended to: {written:?}"
+    );
 }
