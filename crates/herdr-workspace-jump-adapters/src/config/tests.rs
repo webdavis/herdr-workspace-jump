@@ -217,3 +217,79 @@ fn refusal_cause(refusal: ConfigError) -> TargetError {
         other => panic!("expected a declared-workspace refusal, got {other:?}"),
     }
 }
+
+#[test]
+fn read_jump_targets_accepts_a_table_declaring_a_directory_and_a_pick_key() {
+    let sandbox = TempDirectory::new("keyed");
+    let path = sandbox.write(
+        "[workspaces]\nhomelab = \"/srv/homelab\"\nIvy = { dir = \"~/workspaces/Ivy\", key = \"v\" }\n",
+    );
+
+    let targets = read_jump_targets(&path).expect("a readable config");
+
+    assert_eq!(targets[0].label, "Ivy");
+    assert_eq!(targets[0].directory, "~/workspaces/Ivy");
+    assert_eq!(targets[0].pick_key, 'v');
+    assert_eq!(
+        targets[1].pick_key, 'h',
+        "a bare string still defaults its key"
+    );
+}
+
+#[test]
+fn read_jump_targets_refuses_a_table_without_a_directory_or_with_an_unknown_field() {
+    let (refusal, rendered) = refusal_for("no-dir", "[workspaces]\nIvy = { key = \"v\" }\n");
+    assert!(
+        matches!(refusal, ConfigError::Unparseable { .. }),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("a directory, or a table of a dir and an optional key"),
+        "the refusal says what a declaration may be: {rendered}"
+    );
+
+    let (refusal, rendered) = refusal_for(
+        "unknown-field",
+        "[workspaces]\nIvy = { dir = \"/opt/ivy\", keys = \"v\" }\n",
+    );
+    assert!(
+        matches!(refusal, ConfigError::Unparseable { .. }),
+        "{rendered}"
+    );
+}
+
+#[test]
+fn read_jump_targets_refuses_two_workspaces_that_pick_on_the_same_key() {
+    let (refusal, rendered) = refusal_for(
+        "key-collision",
+        "[workspaces]\ndamnit = \"/opt/damnit\"\ndotfiles = \"/opt/dotfiles\"\n",
+    );
+
+    assert_eq!(
+        refusal_cause(refusal),
+        TargetError::CollidingPickKey {
+            first: "damnit".to_string(),
+            second: "dotfiles".to_string(),
+            key: 'd',
+        }
+    );
+    assert!(rendered.contains("damnit"), "{rendered}");
+    assert!(rendered.contains("dotfiles"), "{rendered}");
+}
+
+#[test]
+fn read_jump_targets_refuses_a_pick_key_that_is_not_one_printable_character() {
+    let (refusal, rendered) = refusal_for(
+        "long-key",
+        "[workspaces]\nIvy = { dir = \"/opt/ivy\", key = \"vv\" }\n",
+    );
+
+    assert_eq!(
+        refusal_cause(refusal),
+        TargetError::UnusablePickKey {
+            label: "Ivy".to_string(),
+            key: "vv".to_string(),
+        },
+        "{rendered}"
+    );
+}
