@@ -52,24 +52,29 @@ fn the_wait_gives_up_at_the_cap_for_a_process_that_stays() {
 }
 
 #[test]
-fn a_detached_child_runs_without_this_process_waiting_for_it() {
+fn a_detached_child_runs_in_a_process_group_of_its_own() {
     let sandbox = TempDirectory::new("detached");
     let marker = sandbox.0.join("marker");
 
     spawn_detached(
         Path::new("/bin/sh"),
-        &["-c", &format!("printf ran > {}", marker.display())],
+        &["-c", &format!("ps -o pgid= -p $$ > {}", marker.display())],
     )
     .expect("the child starts");
 
     let deadline = Instant::now() + Duration::from_secs(5);
-    while Instant::now() < deadline && !marker.exists() {
+    let mut child_group = String::new();
+    while Instant::now() < deadline && child_group.trim().is_empty() {
         sleep(POLL_INTERVAL);
+        child_group = std::fs::read_to_string(&marker).unwrap_or_default();
     }
-    assert_eq!(
-        std::fs::read_to_string(&marker).ok().as_deref(),
-        Some("ran"),
-        "the detached child never ran"
+    assert_ne!(
+        child_group
+            .trim()
+            .parse::<i32>()
+            .expect("the detached child never reported its process group"),
+        rustix::process::getpgrp().as_raw_nonzero().get(),
+        "the child shares this process group, so whoever tears the popup down takes it too"
     );
 }
 
