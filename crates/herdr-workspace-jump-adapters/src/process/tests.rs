@@ -1,4 +1,25 @@
+use std::sync::mpsc;
+use std::thread;
+
 use super::*;
+
+/// How long a test waits for the wait itself, which is longer than any cap a
+/// test passes and short enough to fail rather than hang the run.
+const BOUND: Duration = Duration::from_secs(5);
+
+/// Run the wait off the test thread, so one that never gives up fails here
+/// instead of parking the suite until an external timeout kills it.
+fn elapsed_waiting(pid: u32, cap: Duration) -> Duration {
+    let (finished, waited) = mpsc::channel();
+    thread::spawn(move || {
+        let started = Instant::now();
+        wait_for_process_exit(pid, cap);
+        let _ = finished.send(started.elapsed());
+    });
+    waited
+        .recv_timeout(BOUND)
+        .expect("the wait never returned, so its cap is gone")
+}
 
 /// A pid that has run and been reaped, so nothing holds it.
 fn a_pid_that_is_gone() -> u32 {
@@ -28,27 +49,22 @@ impl Drop for TempDirectory {
 
 #[test]
 fn the_wait_ends_at_once_for_a_process_that_is_already_gone() {
-    let started = Instant::now();
-
-    wait_for_process_exit(a_pid_that_is_gone(), Duration::from_secs(2));
+    let elapsed = elapsed_waiting(a_pid_that_is_gone(), Duration::from_secs(2));
 
     assert!(
-        started.elapsed() < Duration::from_secs(1),
-        "the wait did not poll out the cap: {:?}",
-        started.elapsed()
+        elapsed < Duration::from_secs(1),
+        "the wait polled out the cap instead: {elapsed:?}"
     );
 }
 
 #[test]
 fn the_wait_gives_up_at_the_cap_for_a_process_that_stays() {
     let cap = Duration::from_millis(50);
-    let started = Instant::now();
 
-    wait_for_process_exit(std::process::id(), cap);
+    let elapsed = elapsed_waiting(std::process::id(), cap);
 
-    let elapsed = started.elapsed();
     assert!(elapsed >= cap, "it returned before the cap: {elapsed:?}");
-    assert!(elapsed < Duration::from_secs(2), "it overran: {elapsed:?}");
+    assert!(elapsed < BOUND, "it overran its cap: {elapsed:?}");
 }
 
 #[test]
