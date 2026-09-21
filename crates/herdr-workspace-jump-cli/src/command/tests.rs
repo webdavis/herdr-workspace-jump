@@ -59,8 +59,7 @@ fn generate_without_an_output_directory_is_a_usage_error() {
     assert!(matches!(refusal, Err(CommandError::Usage)), "{refusal:?}");
 }
 
-/// The jump and pick verbs reach herdr, so only their refusals are exercised
-/// here: every case below is rejected before anything is sent.
+/// These verbs reach herdr, so every case below is rejected before anything is sent.
 fn refusal(words: &[&str]) -> Result<(), CommandError> {
     execute(
         &words
