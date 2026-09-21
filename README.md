@@ -45,7 +45,8 @@ A leading `~` is expanded when the jump runs, so it can stay in the file.
 `key` defaults to the label's first character lowercased, which is why `homelab` picks on `h` and
 `Ivy` would pick on `i` without the `v` above. It has to be exactly one printable ASCII character,
 and two workspaces resolving to the same key are refused when the config is read, in one sentence
-naming both labels.
+naming both labels. `generate` reads the same file, so that refusal fails a manifest render as much
+as a popup: a new workspace whose key is already taken means giving one of the two its own `key`.
 
 Then render the manifest and link the directory:
 
@@ -79,8 +80,9 @@ command = "herdr-workspace-jump.last_workspace"
 ## The pick popup
 
 `pick` prints one line per workspace, `<key>  <label>`, reads a single keystroke, and jumps to the
-workspace that keystroke names. `esc`, `q` and ctrl-c close it without jumping, and so does any key
-no workspace claims. Bind it as a popup rather than a plugin action:
+workspace that keystroke names. `esc` and ctrl-c always close it without jumping, and so does `q`
+unless a workspace claims that key, and so does any key no workspace claims at all. Bind it as a
+popup rather than a plugin action:
 
 ```toml
 [[keys.command]]
@@ -92,9 +94,9 @@ width = 40
 height = 13
 ```
 
-herdr runs a popup command through `/bin/sh -c`, so the leading `~` above is expanded by the shell
-and an absolute path is not required. `width` and `height` are terminal cells and include the
-border, so thirteen rows hold ten workspaces, the cancel line and the border itself.
+herdr runs a custom command keybinding through a shell, so the leading `~` above is expanded and an
+absolute path is not required. `width` and `height` are terminal cells and include the border, so
+thirteen rows hold ten workspaces, the cancel line and the border itself.
 
 `pick` is a popup command rather than a plugin action, so `generate` does not render it into the
 manifest and nothing needs regenerating when the binding changes. It reads the same config file the
